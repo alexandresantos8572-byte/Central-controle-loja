@@ -1,6 +1,11 @@
-import express from 'express';import fs from 'fs';import path from 'path';import crypto from 'crypto';
-const app=express(),PORT=process.env.PORT||10000;const STORE=path.join(process.cwd(),'incoming-notes.json');app.use(express.json({limit:'1mb'}));
-app.get('/api/health',(req,res)=>res.json({ok:true,app:'CANTRAL CONTROLE — LOJA',webhookReady:true}));
-app.post('/api/webhook/notes',(req,res)=>{const token=process.env.WEBHOOK_TOKEN;if(token&&req.headers['x-cantral-token']!==token)return res.status(401).json({error:'Unauthorized'});const p=req.body||{};if(!p.noteNumber||!p.customer||!Array.isArray(p.items))return res.status(400).json({error:'Expected noteNumber, customer, items[]'});let records=[];try{records=JSON.parse(fs.readFileSync(STORE,'utf8'))}catch{};if(records.some(n=>String(n.noteNumber)===String(p.noteNumber)))return res.status(409).json({error:'Duplicate note number'});const note={...p,receivedAt:new Date().toISOString(),integrationId:crypto.randomUUID(),status:'received'};records.unshift(note);fs.writeFileSync(STORE,JSON.stringify(records,null,2));res.status(201).json({received:true,note});});
-app.get('/api/webhook/notes',(req,res)=>{let records=[];try{records=JSON.parse(fs.readFileSync(STORE,'utf8'))}catch{}res.json(records)});
-app.use(express.static('dist'));app.get('*',(req,res)=>res.sendFile(path.join(process.cwd(),'dist','index.html')));app.listen(PORT,()=>console.log(`CANTRAL LOJA listening on ${PORT}`));
+import express from 'express';
+import path from 'path';
+import { fileURLToPath } from 'url';
+const app = express();
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+app.use(express.json({ limit: '1mb' }));
+app.get('/api/health', (_req, res) => res.json({ ok: true, app: 'CANTRAL CONTROLE — LOJA', version: '1.0.0' }));
+app.use(express.static(path.join(__dirname, 'dist')));
+app.get('*', (_req, res) => res.sendFile(path.join(__dirname, 'dist', 'index.html')));
+const port = process.env.PORT || 10000;
+app.listen(port, '0.0.0.0', () => console.log(`CANTRAL CONTROLE running on ${port}`));
